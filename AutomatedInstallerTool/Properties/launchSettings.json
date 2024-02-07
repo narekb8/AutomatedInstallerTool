@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "WinFormsTest": {
+      "commandName": "Project",
+      "workingDirectory": "C:\\Users\\User\\Desktop\\test-env"
+    }
+  }
+}
