@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using Windows.Media.Ocr;
 using Windows.Graphics.Imaging;
 using System.Drawing.Imaging;
+using System.Management.Automation;
 
 
 namespace WinFormsTest
@@ -210,15 +211,15 @@ namespace WinFormsTest
                             {
                                 if(!ocrResult.Text.ToLower().Contains(currCommand))
                                 {
+                                    curr.Kill();
                                     // TODO: Figure out a good method for bringing this pop-up to focus
                                     var w = new Form() { Size = new Size(0, 0) };
-                                    Task.Delay(TimeSpan.FromSeconds(5))
+                                    await Task.Delay(TimeSpan.FromSeconds(5))
                                     .ContinueWith((t) => w.Close(), TaskScheduler.FromCurrentSynchronizationContext());
 
-                                    MessageBox.Show(w, "Please double check the associated steps.cfg file.", "Cannot find next step.", MessageBoxButtons.OK);
+                                    MessageBox.Show(w, "Invalid Command. Please double check the associated steps.cfg file.", "Cannot find next step.", MessageBoxButtons.OK);
                                     w.BringToFront();
                                     w.Activate();
-                                    curr.Kill();
                                     break;
                                 }
                                 Debug.WriteLine("First if");
@@ -252,6 +253,8 @@ namespace WinFormsTest
                     }
                     Debug.WriteLine("done");
                 }
+                Process regeditProcess = Process.Start("regedit.exe", "/s key.reg");
+                regeditProcess.WaitForExit();
             }
         }
 
@@ -264,14 +267,36 @@ namespace WinFormsTest
             SetCursorPos(10, 10);
         }
 
-        private bool ProcessExists(int id)
+        private static bool ProcessExists(int id)
         {
             return Process.GetProcesses().Any(x => x.Id == id);
         }
 
         private void button1_Click(object sender, EventArgs e)
         {
-            // TODO: Figure out if this is needed and what to do with this
+            OpenFileDialog openFile = new OpenFileDialog();
+            openFile.Filter = "PowerShell Scripts (*.ps1)|*.ps1|Batch Scripts (*.bat)|*.bat";
+            if (openFile.ShowDialog() == DialogResult.OK)
+            {
+                if(openFile.FileName.Contains(".ps1"))
+                {
+                    string psArgs = $"-NoExit -ExecutionPolicy Unrestricted -File \"{openFile.FileName}\"";
+                    Process pShell = new Process();
+                    pShell.StartInfo.Verb = "runas";
+                    pShell.StartInfo.Arguments = psArgs;
+                    pShell.StartInfo.FileName = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
+                    pShell.Start();
+                }
+                else
+                {
+                    string cmdArgs = $"/k \"{openFile.FileName}\"";
+                    Process pShell = new Process();
+                    pShell.StartInfo.Verb = "runas";
+                    pShell.StartInfo.Arguments = cmdArgs;
+                    pShell.StartInfo.FileName = "cmd.exe";
+                    pShell.Start();
+                }
+            }
         }
     }
 }

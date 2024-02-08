@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <PackageReference Include="AutoClosingMessageBox" Version="1.0.0.5" />
+    <PackageReference Include="Microsoft.PowerShell.5.ReferenceAssemblies" Version="1.1.0" />
   </ItemGroup>
 
 </Project>
