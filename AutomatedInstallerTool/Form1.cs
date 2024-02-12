@@ -90,12 +90,15 @@ namespace WinFormsTest
         private void loadList()
         {
             checkedListBox1.Items.Clear();
-            foreach (string path in Directory.GetDirectories(Directory.GetCurrentDirectory()))
+            foreach (string path in Directory.GetFiles(Directory.GetCurrentDirectory()))
             {
-                BackgroundWorker worker = new BackgroundWorker();
-                worker.DoWork += new DoWorkEventHandler(Worker_DoWork);
-                worker.RunWorkerCompleted += new RunWorkerCompletedEventHandler(Worker_RunWorkerCompleted);
-                worker.RunWorkerAsync(path);
+                if(path.Contains(".lnk"))
+                {
+                    Debug.WriteLine(path);
+                    string newKey = Path.GetFileNameWithoutExtension(path);
+                    exeMap[newKey] = path;
+                    checkedListBox1.Items.Add(newKey);
+                }
             }
         }
 
@@ -130,30 +133,6 @@ namespace WinFormsTest
             return;
         }
 
-        private void Worker_DoWork(object sender, DoWorkEventArgs e)
-        {
-            Dictionary<string, string> toAdd = new Dictionary<string, string>();
-            BackgroundWorker worker = sender as BackgroundWorker;
-
-            string[] curr = Directory.GetFiles(((string)e.Argument).ToLower(), "*.lnk");
-            foreach (string files in curr) toAdd.Add(files, (string)e.Argument);
-            e.Result = toAdd;
-            Debug.WriteLine(toAdd.Count);
-        }
-
-        private void Worker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
-        {
-            Dictionary<string, string> result = (Dictionary<string, string>)e.Result;
-            Debug.WriteLine("Invoke");
-            foreach (KeyValuePair<string, string> curr in result)
-            {
-                Debug.WriteLine(curr.Key);
-                string newKey = curr.Value.Substring(curr.Value.LastIndexOf(@"\") + 1) + @"\" + Path.GetFileNameWithoutExtension(curr.Key);
-                exeMap[newKey] = curr.Key;
-                checkedListBox1.Items.Add(newKey);
-            }
-        }
-
         async private void installButton_Click(object sender, EventArgs e)
         {
             if (checkedListBox1.CheckedItems.Count != 0)
@@ -174,8 +153,8 @@ namespace WinFormsTest
 
                     int currPID = curr.Id;
                     String prevScan = "";
-                    string dir = Path.GetDirectoryName(currItem) + @"\" + "steps.cfg";
-                    var sr = new StreamReader(System.IO.File.Open(dir, FileMode.OpenOrCreate));
+                    string dir = Path.GetDirectoryName(currItem) + @"\" + checkedListBox1.CheckedItems[x].ToString() + ".cfg";
+                    var sr = new StreamReader(File.Open(dir, FileMode.OpenOrCreate));
                     Debug.WriteLine(currPID);
 
                     Thread.Sleep(5000);
@@ -189,7 +168,7 @@ namespace WinFormsTest
 
                         using (var stream = new Windows.Storage.Streams.InMemoryRandomAccessStream())
                         {
-                            var fileStream = System.IO.File.Create(".\\img.bmp");
+                            var fileStream = File.Create(".\\img.bmp");
                             bitmap.Save(fileStream, ImageFormat.Png);
                             fileStream.Close();
                             bitmap.Save(stream.AsStream(), ImageFormat.Bmp); //choose the specific image format by your own bitmap source
@@ -199,12 +178,11 @@ namespace WinFormsTest
 
                         var ocrResult = await ocr.RecognizeAsync(currWindow);
                         curr.Refresh();
+                        string currCommand = sr.ReadLine();
 
-                        if(ocrResult.Text != prevScan && (!ocrResult.Text.ToLower().Contains("installing") || !ocrResult.Text.ToLower().Contains("being installed")))
+                        if ((ocrResult.Text != prevScan && (!ocrResult.Text.ToLower().Contains("installing") || !ocrResult.Text.ToLower().Contains("being installed"))) || currCommand != null || currCommand != "")
                         {
                             Debug.WriteLine(ocrResult.Text);
-                            string currCommand = sr.ReadLine();
-                            Debug.WriteLine(ocrResult.Text.ToLower().Contains(currCommand));
                             Debug.WriteLine(currCommand);
 
                             if (currCommand != null && currCommand != "")
@@ -247,14 +225,25 @@ namespace WinFormsTest
                                 Debug.WriteLine("Out of loops");
                             }
                         }
-
+                        currCommand = sr.ReadLine();
                         prevScan = ocrResult.Text;
                         Thread.Sleep(2000);
                     }
+                    sr.Close();
                     Debug.WriteLine("done");
                 }
+                if(renamePC.Text != "" && renamePC.Text != null)
+                {
+                    PowerShell ps = PowerShell.Create().AddCommand("Rename-Computer").AddParameter("-NewName", $"\"{renamePC.Text}\"");
+                    ps.BeginInvoke();
+                }
+
+                string regCommand = "Windows Registry Editor Version 5.00\r\n\r\n[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System]\r\n\"ConsentPromptBehaviorAdmin\"=dword:00000005\r\n\"ConsentPromptBehaviorUser\"=dword:00000003\r\n\"EnableInstallerDetection\"=dword:00000001\r\n\"EnableLUA\"=dword:00000001\r\n\"EnableVirtualization\"=dword:00000001\r\n\"PromptOnSecureDesktop\"=dword:00000001\r\n\"ValidateAdminCodeSignatures\"=dword:00000000\r\n\"FilterAdministratorToken\"=dword:00000000";
+                File.WriteAllText(Directory.GetCurrentDirectory() + "\\key.reg", regCommand);
+                Debug.WriteLine(Directory.GetCurrentDirectory() + "\\key.reg");
                 Process regeditProcess = Process.Start("regedit.exe", "/s key.reg");
                 regeditProcess.WaitForExit();
+                File.Delete(Directory.GetCurrentDirectory() + "\\key.reg");
             }
         }
 

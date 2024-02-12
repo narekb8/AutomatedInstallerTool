@@ -29,34 +29,27 @@
         private void InitializeComponent()
         {
             checkedListBox1 = new CheckedListBox();
-            refreshList = new Button();
             installButton = new Button();
             button1 = new Button();
+            renamePC = new TextBox();
+            refreshList = new Button();
             SuspendLayout();
             // 
             // checkedListBox1
             // 
             checkedListBox1.FormattingEnabled = true;
-            checkedListBox1.Location = new Point(12, 12);
+            checkedListBox1.Location = new Point(14, 16);
+            checkedListBox1.Margin = new Padding(3, 4, 3, 4);
             checkedListBox1.Name = "checkedListBox1";
-            checkedListBox1.Size = new Size(354, 382);
+            checkedListBox1.Size = new Size(404, 488);
             checkedListBox1.TabIndex = 0;
-            // 
-            // refreshList
-            // 
-            refreshList.Location = new Point(12, 408);
-            refreshList.Name = "refreshList";
-            refreshList.Size = new Size(110, 28);
-            refreshList.TabIndex = 1;
-            refreshList.Text = "Refresh List";
-            refreshList.UseVisualStyleBackColor = true;
-            refreshList.Click += refreshList_Click;
             // 
             // installButton
             // 
-            installButton.Location = new Point(134, 408);
+            installButton.Location = new Point(153, 544);
+            installButton.Margin = new Padding(3, 4, 3, 4);
             installButton.Name = "installButton";
-            installButton.Size = new Size(110, 28);
+            installButton.Size = new Size(126, 37);
             installButton.TabIndex = 2;
             installButton.Text = "Install";
             installButton.UseVisualStyleBackColor = true;
@@ -64,33 +57,57 @@
             // 
             // button1
             // 
-            button1.Location = new Point(256, 408);
+            button1.Location = new Point(293, 544);
+            button1.Margin = new Padding(3, 4, 3, 4);
             button1.Name = "button1";
-            button1.Size = new Size(110, 28);
+            button1.Size = new Size(126, 37);
             button1.TabIndex = 3;
-            button1.Text = "Install";
+            button1.Text = "Run .bat/.ps1";
             button1.UseVisualStyleBackColor = true;
-            button1.Click += this.button1_Click;
+            button1.Click += button1_Click;
+            // 
+            // renamePC
+            // 
+            renamePC.Location = new Point(14, 511);
+            renamePC.Name = "renamePC";
+            renamePC.PlaceholderText = "Insert new computer name here, will execute during 'Install'";
+            renamePC.Size = new Size(405, 27);
+            renamePC.TabIndex = 4;
+            // 
+            // refreshList
+            // 
+            refreshList.Location = new Point(14, 544);
+            refreshList.Margin = new Padding(3, 4, 3, 4);
+            refreshList.Name = "refreshList";
+            refreshList.Size = new Size(126, 37);
+            refreshList.TabIndex = 1;
+            refreshList.Text = "Refresh List";
+            refreshList.UseVisualStyleBackColor = true;
+            refreshList.Click += refreshList_Click;
             // 
             // Form1
             // 
-            AutoScaleDimensions = new SizeF(7F, 15F);
+            AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(382, 450);
+            ClientSize = new Size(437, 600);
+            Controls.Add(renamePC);
             Controls.Add(button1);
             Controls.Add(installButton);
             Controls.Add(refreshList);
             Controls.Add(checkedListBox1);
+            Margin = new Padding(3, 4, 3, 4);
             Name = "Form1";
             Text = "Form1";
             ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
 
         private CheckedListBox checkedListBox1;
-        private Button refreshList;
         private Button installButton;
         private Button button1;
+        private TextBox renamePC;
+        private Button refreshList;
     }
 }
