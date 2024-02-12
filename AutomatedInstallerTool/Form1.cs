@@ -90,6 +90,7 @@ namespace WinFormsTest
         private void loadList()
         {
             checkedListBox1.Items.Clear();
+            Directory.CreateDirectory(".\\cfg");
             foreach (string path in Directory.GetFiles(Directory.GetCurrentDirectory()))
             {
                 if(path.Contains(".lnk"))
@@ -98,6 +99,7 @@ namespace WinFormsTest
                     string newKey = Path.GetFileNameWithoutExtension(path);
                     exeMap[newKey] = path;
                     checkedListBox1.Items.Add(newKey);
+                    File.Create(Directory.GetCurrentDirectory() + "\\cfg\\" + Path.GetFileNameWithoutExtension(path) + ".cfg").Close();
                 }
             }
         }
@@ -153,7 +155,7 @@ namespace WinFormsTest
 
                     int currPID = curr.Id;
                     String prevScan = "";
-                    string dir = Path.GetDirectoryName(currItem) + @"\" + checkedListBox1.CheckedItems[x].ToString() + ".cfg";
+                    string dir = Path.GetDirectoryName(currItem) + "\\cfg\\" + checkedListBox1.CheckedItems[x].ToString() + ".cfg";
                     var sr = new StreamReader(File.Open(dir, FileMode.OpenOrCreate));
                     Debug.WriteLine(currPID);
 
