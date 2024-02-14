@@ -5,6 +5,7 @@ using Windows.Media.Ocr;
 using Windows.Graphics.Imaging;
 using System.Drawing.Imaging;
 using System.Management.Automation;
+using Windows.UI.UIAutomation;
 
 
 namespace WinFormsTest
@@ -64,6 +65,9 @@ namespace WinFormsTest
         [DllImport("user32.dll")]
         public static extern void mouse_event(int dwFlags, int dx, int dy, int cButtons, int dwExtraInfo);
 
+        [DllImport("user32.dll")]
+        public static extern bool SetForegroundWindow(IntPtr hWnd);
+
         public const int MOUSEEVENTF_LEFTDOWN = 0x02;
         public const int MOUSEEVENTF_LEFTUP = 0x04;
 
@@ -119,10 +123,11 @@ namespace WinFormsTest
 
                     while (ProcessExists(currPID))
                     {
+                        SetForegroundWindow((IntPtr)curr.MainWindowHandle);
                         SoftwareBitmap currWindow;
                         ImgData imgData = CaptureWindow();
+                        if (imgData == null) continue;
                         Bitmap bitmap = imgData.bmap;
-                        if (bitmap == null) continue;
 
                         using (var stream = new Windows.Storage.Streams.InMemoryRandomAccessStream())
                         {
@@ -138,9 +143,10 @@ namespace WinFormsTest
                         curr.Refresh();
                         string currCommand = sr.ReadLine();
 
-                        if ((ocrResult.Text != prevScan && (!ocrResult.Text.ToLower().Contains("installing") || !ocrResult.Text.ToLower().Contains("being installed"))) || currCommand != null || currCommand != "")
+                        if ((GetDamerauLevenshteinDistance(ocrResult.Text, prevScan) > 20 && (!ocrResult.Text.ToLower().Contains("installing") || !ocrResult.Text.ToLower().Contains("being installed"))) || currCommand != null || currCommand != "")
                         {
                             Debug.WriteLine(ocrResult.Text);
+                            Debug.WriteLine(GetDamerauLevenshteinDistance(ocrResult.Text, prevScan));
                             Debug.WriteLine(currCommand);
 
                             if (currCommand != null && currCommand != "")
@@ -217,6 +223,67 @@ namespace WinFormsTest
         private static bool ProcessExists(int id)
         {
             return Process.GetProcesses().Any(x => x.Id == id);
+        }
+
+        // Taken from https://stackoverflow.com/a/57961456, changed null or empty values to force a major inequality
+        public static int GetDamerauLevenshteinDistance(string s, string t)
+        {
+            if (string.IsNullOrEmpty(s))
+            {
+                return 200;
+            }
+
+            if (string.IsNullOrEmpty(t))
+            {
+                return 200;
+            }
+
+            int n = s.Length; // length of s
+            int m = t.Length; // length of t
+
+            if (n == 0)
+            {
+                return m;
+            }
+
+            if (m == 0)
+            {
+                return n;
+            }
+
+            int[] p = new int[n + 1]; //'previous' cost array, horizontally
+            int[] d = new int[n + 1]; // cost array, horizontally
+
+            // indexes into strings s and t
+            int i; // iterates through s
+            int j; // iterates through t
+
+            for (i = 0; i <= n; i++)
+            {
+                p[i] = i;
+            }
+
+            for (j = 1; j <= m; j++)
+            {
+                char tJ = t[j - 1]; // jth character of t
+                d[0] = j;
+
+                for (i = 1; i <= n; i++)
+                {
+                    int cost = s[i - 1] == tJ ? 0 : 1; // cost
+                                                       // minimum of cell to the left+1, to the top+1, diagonally left and up +cost                
+                    d[i] = Math.Min(Math.Min(d[i - 1] + 1, p[i] + 1), p[i - 1] + cost);
+                }
+
+                // copy current distance counts to 'previous row' distance counts
+                int[] dPlaceholder = p; //placeholder to assist in swapping p and d
+                p = d;
+                d = dPlaceholder;
+            }
+
+            // our last action in the above loop was to switch d and p, so p now 
+            // actually has the most recent cost counts
+            return p[n];
         }
 
         private void button1_Click(object sender, EventArgs e)
