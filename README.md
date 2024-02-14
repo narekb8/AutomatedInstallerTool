@@ -1,4 +1,4 @@
-# One-Click Installation Tool
+# One-Click Automated Installation Tool
 
 A simple, yet fairly robust tool to install multiple programs and execute powershell/command prompt scripts for Windows 10 and newer machines. Can be fully automated to a decent degree, with more features intended in the near future.
 
