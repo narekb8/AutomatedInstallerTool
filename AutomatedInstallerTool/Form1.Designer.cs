@@ -37,6 +37,7 @@
             // 
             // checkedListBox1
             // 
+            checkedListBox1.CheckOnClick = true;
             checkedListBox1.FormattingEnabled = true;
             checkedListBox1.Location = new Point(14, 16);
             checkedListBox1.Margin = new Padding(3, 4, 3, 4);

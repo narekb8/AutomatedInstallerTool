@@ -11,14 +11,11 @@ namespace WinFormsTest
 {
     public partial class Form1 : Form
     {
-        private delegate void PassFiles(Dictionary<string, string> files);
-
         public Dictionary<string, string> exeMap;
-        PassFiles passDelegate;
         public Form1()
         {
             InitializeComponent();
-            exeMap = new Dictionary<string, string>();
+            exeMap = [];
             loadList();
         }
 
@@ -31,18 +28,11 @@ namespace WinFormsTest
             public int Bottom;
         }
 
-        public class ImgData
+        public class ImgData(int x, int y, Bitmap map)
         {
-            public int xPos;
-            public int yPos;
-            public Bitmap bmap;
-
-            public ImgData(int x, int y, Bitmap map)
-            {
-                xPos = x;
-                yPos = y;
-                bmap = map;
-            }
+            public int xPos = x;
+            public int yPos = y;
+            public Bitmap bmap = map;
         }
 
         public static ImgData CaptureWindow()
@@ -90,6 +80,7 @@ namespace WinFormsTest
         private void loadList()
         {
             checkedListBox1.Items.Clear();
+            Directory.CreateDirectory(".\\cfg");
             foreach (string path in Directory.GetFiles(Directory.GetCurrentDirectory()))
             {
                 if(path.Contains(".lnk"))
@@ -98,46 +89,16 @@ namespace WinFormsTest
                     string newKey = Path.GetFileNameWithoutExtension(path);
                     exeMap[newKey] = path;
                     checkedListBox1.Items.Add(newKey);
+                    File.Create(Directory.GetCurrentDirectory() + "\\cfg\\" + Path.GetFileNameWithoutExtension(path) + ".cfg").Close();
                 }
             }
-        }
-
-        async Task ParallelSearch(string[] paths)
-        {
-            Debug.WriteLine("Invoke thread");
-            foreach (string path in paths)
-                await Task.Run(() => recurseSearch(path));
-        }
-
-        private void recurseSearch(string path)
-        {
-            Dictionary<string, string> toAdd = new Dictionary<string, string>();
-            string[] curr = Directory.GetFiles(path, "setup");
-            if (curr.Length == 0)
-            {
-                curr = Directory.GetFiles(path, "*.exe");
-                if (curr.Length == 0)
-                {
-                    curr = Directory.GetDirectories(path);
-                    ParallelSearch(curr);
-                    return;
-                }
-                foreach (string file in curr)
-                    toAdd.Add(file, path);
-                IAsyncResult exe = BeginInvoke(passDelegate, new object[] { toAdd });
-                return;
-            }
-            foreach (string file in curr)
-                toAdd.Add(file, path);
-            IAsyncResult setup = BeginInvoke(passDelegate, new object[] { toAdd });
-            return;
         }
 
         async private void installButton_Click(object sender, EventArgs e)
         {
             if (checkedListBox1.CheckedItems.Count != 0)
             {
-                OcrEngine ocr = null;
+                OcrEngine ocr;
                 ocr = OcrEngine.TryCreateFromUserProfileLanguages();
 
                 for (int x = 0; x < checkedListBox1.CheckedItems.Count; x++)
@@ -148,12 +109,9 @@ namespace WinFormsTest
                     //info.Arguments = $"/k \"{exeMap[checkedListBox1.CheckedItems[x].ToString()]}\"";
                     Process curr = Process.Start(info);
 
-                    Mutex mutex;
-                    Mutex.TryOpenExisting(@"Global\_MSIExecute", out mutex);
-
                     int currPID = curr.Id;
                     String prevScan = "";
-                    string dir = Path.GetDirectoryName(currItem) + @"\" + checkedListBox1.CheckedItems[x].ToString() + ".cfg";
+                    string dir = Path.GetDirectoryName(currItem) + "\\cfg\\" + checkedListBox1.CheckedItems[x].ToString() + ".cfg";
                     var sr = new StreamReader(File.Open(dir, FileMode.OpenOrCreate));
                     Debug.WriteLine(currPID);
 
@@ -263,8 +221,10 @@ namespace WinFormsTest
 
         private void button1_Click(object sender, EventArgs e)
         {
-            OpenFileDialog openFile = new OpenFileDialog();
-            openFile.Filter = "PowerShell Scripts (*.ps1)|*.ps1|Batch Scripts (*.bat)|*.bat";
+            OpenFileDialog openFile = new()
+            {
+                Filter = "PowerShell Scripts (*.ps1)|*.ps1|Batch Scripts (*.bat)|*.bat"
+            };
             if (openFile.ShowDialog() == DialogResult.OK)
             {
                 if(openFile.FileName.Contains(".ps1"))
