@@ -93,7 +93,7 @@ namespace WinFormsTest
                     string newKey = Path.GetFileNameWithoutExtension(path);
                     exeMap[newKey] = path;
                     checkedListBox1.Items.Add(newKey);
-                    File.Create(Directory.GetCurrentDirectory() + "\\cfg\\" + Path.GetFileNameWithoutExtension(path) + ".cfg").Close();
+                    File.Open(Directory.GetCurrentDirectory() + "\\cfg\\" + Path.GetFileNameWithoutExtension(path) + ".cfg", FileMode.OpenOrCreate).Close();
                 }
             }
         }
@@ -141,27 +141,31 @@ namespace WinFormsTest
 
                         var ocrResult = await ocr.RecognizeAsync(currWindow);
                         curr.Refresh();
-                        string currCommand = sr.ReadLine();
 
-                        if ((GetDamerauLevenshteinDistance(ocrResult.Text, prevScan) > 20 && (!ocrResult.Text.ToLower().Contains("installing") || !ocrResult.Text.ToLower().Contains("being installed"))) || currCommand != null || currCommand != "")
+                        if (GetDamerauLevenshteinDistance(ocrResult.Text, prevScan) > 20 && (!ocrResult.Text.ToLower().Contains("prepar") || !ocrResult.Text.ToLower().Contains("installing") || !ocrResult.Text.ToLower().Contains("being installed") || ocrResult.Text != ""))
                         {
+                            string currCommand = sr.ReadLine();
                             Debug.WriteLine(ocrResult.Text);
                             Debug.WriteLine(GetDamerauLevenshteinDistance(ocrResult.Text, prevScan));
                             Debug.WriteLine(currCommand);
 
                             if (currCommand != null && currCommand != "")
                             {
-                                if(!ocrResult.Text.ToLower().Contains(currCommand))
+                                if (currCommand == "-/-/")
+                                {
+                                    prevScan = ocrResult.Text;
+                                    continue;
+                                }
+                                else if (!ocrResult.Text.Contains(currCommand))
                                 {
                                     curr.Kill();
                                     // TODO: Figure out a good method for bringing this pop-up to focus
                                     var w = new Form() { Size = new Size(0, 0) };
-                                    await Task.Delay(TimeSpan.FromSeconds(5))
-                                    .ContinueWith((t) => w.Close(), TaskScheduler.FromCurrentSynchronizationContext());
-
                                     MessageBox.Show(w, "Invalid Command. Please double check the associated steps.cfg file.", "Cannot find next step.", MessageBoxButtons.OK);
                                     w.BringToFront();
                                     w.Activate();
+                                    await Task.Delay(TimeSpan.FromSeconds(5))
+                                    .ContinueWith((t) => w.Close(), TaskScheduler.FromCurrentSynchronizationContext());
                                     break;
                                 }
                                 Debug.WriteLine("First if");
@@ -188,10 +192,10 @@ namespace WinFormsTest
                             PostSearch:
                                 Debug.WriteLine("Out of loops");
                             }
+                            currCommand = sr.ReadLine();
                         }
-                        currCommand = sr.ReadLine();
                         prevScan = ocrResult.Text;
-                        Thread.Sleep(2000);
+                        Thread.Sleep(100);
                     }
                     sr.Close();
                     Debug.WriteLine("done");
