@@ -85,6 +85,7 @@ namespace WinFormsTest
         {
             checkedListBox1.Items.Clear();
             Directory.CreateDirectory(".\\cfg");
+            Directory.CreateDirectory(".\\cfg\\debug");
             foreach (string path in Directory.GetFiles(Directory.GetCurrentDirectory()))
             {
                 if(path.Contains(".lnk"))
@@ -131,45 +132,76 @@ namespace WinFormsTest
 
                         using (var stream = new Windows.Storage.Streams.InMemoryRandomAccessStream())
                         {
-                            var fileStream = File.Create(".\\img.bmp");
+                            var fileStream = File.Create(".\\cfg\\debug\\img1.bmp");
                             bitmap.Save(fileStream, ImageFormat.Png);
                             fileStream.Close();
                             bitmap.Save(stream.AsStream(), ImageFormat.Bmp); //choose the specific image format by your own bitmap source
                             BitmapDecoder decoder = await BitmapDecoder.CreateAsync(stream);
                             currWindow = await decoder.GetSoftwareBitmapAsync();
+                            stream.Dispose();
+                        }
+
+                        Thread.Sleep(10000);
+
+                        SetForegroundWindow((IntPtr)curr.MainWindowHandle);
+                        SoftwareBitmap currWindow2;
+                        ImgData imgData2 = CaptureWindow();
+                        if (imgData2 == null) continue;
+                        Bitmap bitmap2 = imgData2.bmap;
+
+                        using (var stream = new Windows.Storage.Streams.InMemoryRandomAccessStream())
+                        {
+                            var fileStream = File.Create(".\\cfg\\debug\\img2.bmp");
+                            bitmap2.Save(fileStream, ImageFormat.Png);
+                            fileStream.Close();
+                            bitmap2.Save(stream.AsStream(), ImageFormat.Bmp); //choose the specific image format by your own bitmap source
+                            BitmapDecoder decoder = await BitmapDecoder.CreateAsync(stream);
+                            currWindow2 = await decoder.GetSoftwareBitmapAsync();
+                            stream.Dispose();
                         }
 
                         var ocrResult = await ocr.RecognizeAsync(currWindow);
+                        var ocrResult2 = await ocr.RecognizeAsync(currWindow2);
+                        Debug.WriteLine(GetDamerauLevenshteinDistance(ocrResult.Text, ocrResult2.Text));
+                        if (GetDamerauLevenshteinDistance(ocrResult.Text, ocrResult2.Text) > 0)
+                        {
+                            continue;
+                        }
+
                         curr.Refresh();
 
-                        if (GetDamerauLevenshteinDistance(ocrResult.Text, prevScan) > 20 && (!ocrResult.Text.ToLower().Contains("prepar") || !ocrResult.Text.ToLower().Contains("installing") || !ocrResult.Text.ToLower().Contains("being installed") || ocrResult.Text != ""))
+                        string ocrText = ocrResult2.Text.ToLower();
+
+                        if (ocrText != "" && GetDamerauLevenshteinDistance(ocrText, prevScan) > 50)
                         {
                             string currCommand = sr.ReadLine();
-                            Debug.WriteLine(ocrResult.Text);
-                            Debug.WriteLine(GetDamerauLevenshteinDistance(ocrResult.Text, prevScan));
+                            Debug.WriteLine(ocrText);
+                            Debug.WriteLine(GetDamerauLevenshteinDistance(ocrText, prevScan));
                             Debug.WriteLine(currCommand);
 
                             if (currCommand != null && currCommand != "")
                             {
                                 if (currCommand == "-/-/")
                                 {
-                                    prevScan = ocrResult.Text;
+                                    prevScan = ocrText;
                                     continue;
                                 }
-                                else if (!ocrResult.Text.Contains(currCommand))
+                                else if (!ocrText.Contains(currCommand.ToLower()))
                                 {
                                     curr.Kill();
                                     // TODO: Figure out a good method for bringing this pop-up to focus
                                     var w = new Form() { Size = new Size(0, 0) };
-                                    MessageBox.Show(w, "Invalid Command. Please double check the associated steps.cfg file.", "Cannot find next step.", MessageBoxButtons.OK);
+                                    MessageBox.Show(w, "Invalid Command. Please double check the associated steps.cfg file.",
+                                        "Cannot find next step.", MessageBoxButtons.OK);
                                     w.BringToFront();
                                     w.Activate();
                                     await Task.Delay(TimeSpan.FromSeconds(5))
-                                    .ContinueWith((t) => w.Close(), TaskScheduler.FromCurrentSynchronizationContext());
+                                        .ContinueWith((t) => w.Close(), TaskScheduler.FromCurrentSynchronizationContext());
                                     break;
                                 }
                                 Debug.WriteLine("First if");
-                                foreach (OcrLine line in ocrResult.Lines.ToArray())
+                                List<Tuple<int, int>> wordList = new List<Tuple<int, int>>();
+                                foreach (OcrLine line in ocrResult2.Lines.ToArray())
                                 {
                                     string currLine = line.Text.ToLower();
                                     if (currLine.Contains(currCommand.ToLower()))
@@ -179,27 +211,32 @@ namespace WinFormsTest
                                         {
                                             if (word.Text.ToLower().Equals(currCommand.ToLower()))
                                             {
-                                                Debug.WriteLine("Found word");
-                                                GraphicsUnit unit = GraphicsUnit.Point;
-                                                RectangleF bounds = bitmap.GetBounds(ref unit);
-                                                Thread thread = new Thread(() => LeftMouseClick((int)word.BoundingRect.X + imgData.xPos, (int)word.BoundingRect.Y + imgData.yPos));
-                                                thread.Start();
-                                                goto PostSearch;
+                                                wordList.Add(new Tuple<int, int>((int)word.BoundingRect.X + imgData2.xPos, (int)word.BoundingRect.Y + imgData2.yPos));
                                             }
                                         }
                                     }
                                 }
-                            PostSearch:
-                                Debug.WriteLine("Out of loops");
+
+                                foreach (Tuple<int, int> word in wordList)
+                                {
+                                    Debug.WriteLine("Found word");
+                                    GraphicsUnit unit = GraphicsUnit.Point;
+                                    RectangleF bounds = bitmap.GetBounds(ref unit);
+                                    Thread thread = new Thread(() => LeftMouseClick(word.Item1, word.Item2));
+                                    thread.Start();
+                                    thread.Join();
+                                }
                             }
-                            currCommand = sr.ReadLine();
                         }
-                        prevScan = ocrResult.Text;
-                        Thread.Sleep(100);
+                        prevScan = ocrResult2.Text;
+                        currWindow2.Dispose();
+                        currWindow.Dispose();
+                        Thread.Sleep(5000);
                     }
                     sr.Close();
                     Debug.WriteLine("done");
                 }
+
                 if(renamePC.Text != "" && renamePC.Text != null)
                 {
                     PowerShell ps = PowerShell.Create().AddCommand("Rename-Computer").AddParameter("-NewName", $"\"{renamePC.Text}\"");
